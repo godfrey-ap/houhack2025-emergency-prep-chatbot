@@ -1,103 +1,193 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+
+// Extend Window interface for Voiceflow
+declare global {
+  interface Window {
+    voiceflow?: {
+      chat: {
+        load: (config: any) => void;
+      };
+    };
+  }
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [currentTime, setCurrentTime] = useState("");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    // Update time every second
+    const updateTime = () => {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: false,
+      });
+      setCurrentTime(timeString);
+    };
+
+    // Set initial time
+    updateTime();
+
+    // Update every second
+    const interval = setInterval(updateTime, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    // Suppress audio context warnings (non-critical for text-only chat)
+    const originalError = console.error;
+    console.error = (...args) => {
+      if (args[0]?.includes?.('audio context suspended') || 
+          args[0]?.includes?.('error initializing audio')) {
+        return; // Suppress audio-related errors
+      }
+      originalError.apply(console, args);
+    };
+
+    // Add CSS for proper Voiceflow widget display
+    const style = document.createElement("style");
+    style.textContent = `
+      #voiceflow-chat {
+        height: 100% !important;
+        max-height: 600px !important;
+        overflow: hidden !important;
+      }
+      #voiceflow-chat > div {
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      #voiceflow-chat .vfrc-chat {
+        height: 100% !important;
+        max-height: none !important;
+        border-radius: 1rem !important;
+      }
+      #voiceflow-chat .vfrc-chat--container {
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      #voiceflow-chat .vfrc-chat--dialog {
+        flex: 1 !important;
+        overflow-y: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Official Voiceflow embed code
+    (function (d, t) {
+      const v = d.createElement(t) as HTMLScriptElement;
+      const s = d.getElementsByTagName(t)[0];
+      v.onload = function () {
+        if (window.voiceflow) {
+          window.voiceflow.chat.load({
+            verify: { projectID: "68bdc519d1715034556f9461" },
+            url: "https://general-runtime.voiceflow.com",
+            versionID: "production",
+            voice: {
+              url: "https://runtime-api.voiceflow.com",
+            },
+            render: {
+              mode: "embedded",
+              target: document.getElementById("voiceflow-chat"),
+            },
+          });
+        }
+      };
+      v.src = "https://cdn.voiceflow.com/widget-next/bundle.mjs";
+      v.type = "text/javascript";
+      if (s.parentNode) {
+        s.parentNode.insertBefore(v, s);
+      }
+    })(document, "script");
+
+    return () => {
+      // Cleanup
+      if (style.parentNode) {
+        style.parentNode.removeChild(style);
+      }
+      // Restore original console.error
+      console.error = originalError;
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      {/* Phone Mockup */}
+      <div className="w-[375px] h-[812px] bg-black rounded-[40px] p-2 shadow-2xl">
+        <div className="w-full h-full bg-gray-900 rounded-[32px] flex flex-col text-white overflow-hidden">
+          {/* Status Bar */}
+          <div className="h-11 flex items-center justify-between px-6 text-sm font-medium">
+            <span>{currentTime || "9:41"}</span>
+            <div className="flex items-center gap-1">
+              <div className="w-4 h-2 border border-white rounded-sm">
+                <div className="w-3 h-1 bg-white rounded-sm"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Header */}
+          {/* <header className="px-6 py-4 text-center">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 1L3 7v11a1 1 0 001 1h3v-7h6v7h3a1 1 0 001-1V7l-7-6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </div>
+              <h1 className="text-lg font-bold leading-tight">
+                Houston Emergency
+                <br />
+                Preparedness Assistant
+              </h1>
+            </div>
+            <p className="text-gray-400 text-xs">
+              Get help with emergency planning and safety
+              <br />
+              information for Houston, TX
+            </p>
+          </header> */}
+
+          {/* Chat Area */}
+          <div className="flex-1 mx-4 mb-4 overflow-hidden">
+            <div
+              id="voiceflow-chat"
+              className="w-full h-full min-h-[500px] max-h-[600px] overflow-auto"
+              style={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            ></div>
+          </div>
+
+          {/* Footer */}
+          <footer className="px-4 py-3 text-center text-xs text-gray-500 border-t border-gray-800">
+            <div className="mb-1">© City of Houston</div>
+            <div className="mb-1">Harris County Emergency Management</div>
+            <div className="flex items-center justify-center gap-1">
+              <span>📞</span>
+              <span>Emergency: 911</span>
+            </div>
+          </footer>
+
+          {/* Home Indicator */}
+          <div className="h-5 flex items-center justify-center">
+            <div className="w-32 h-1 bg-white rounded-full opacity-60"></div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }
